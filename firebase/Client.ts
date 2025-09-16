@@ -3,7 +3,7 @@ import {getAuth} from 'firebase/auth';
 import {getFirestore} from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_CLIENT_TS_API,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_TS_API,
   authDomain: "questly-5b969.firebaseapp.com",
   projectId: "questly-5b969",
   storageBucket: "questly-5b969.firebasestorage.app",
