@@ -1,18 +1,18 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import {getAuth} from 'firebase/auth';
-import {getFirestore} from 'firebase/firestore';
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_CLIENT_TS_API,
-  authDomain: "questly-5b969.firebaseapp.com",
-  projectId: "questly-5b969",
-  storageBucket: "questly-5b969.firebasestorage.app",
-  messagingSenderId: "399822741311",
-  appId: "1:399822741311:web:55c72a914f05326bcefd8a",
-  measurementId: "G-VVN44PTPXW"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 //hello//
 // Initialize Firebase
-const app =!getApps.length ?  initializeApp(firebaseConfig):getApp();
-export const auth=getAuth(app);
-export const db= getFirestore(app);
+const app = !getApps.length ? initializeApp(firebaseConfig) : getApp();
+export const auth = getAuth(app);
+export const db = getFirestore(app);
