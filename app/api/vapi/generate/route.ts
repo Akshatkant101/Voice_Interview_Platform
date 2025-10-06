@@ -8,9 +8,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
-
+  
   try {
+    const { type, role, level, techstack, amount, userid } = await request.json();
+
+    console.log("userid: ", userid);
+    console.log("role: ", role);
+    console.log("type: ", type);
+    console.log("level: ", level);
+    console.log("techstack: ", techstack);
+    console.log("amount: ", amount);
+    
     const { text: questions } = await generateText({
       model: google("gemini-2.0-flash-001"),
       prompt: `Prepare questions for a job interview.
