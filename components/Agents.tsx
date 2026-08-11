@@ -4,6 +4,7 @@ import { vapi } from "@/lib/vapi.sdk";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -46,8 +47,14 @@ const Agents = ({ userName, userId, type }: AgentProps) => {
         JSON.stringify(error, Object.getOwnPropertyNames(error ?? {}), 2),
       );
 
-    const onCallStartFailed = (event: any) =>
+    const onCallStartFailed = (event: any) => {
       console.error("Vapi call-start-failed:", JSON.stringify(event, null, 2));
+      // Without this the button is stuck on "..." forever after a failed call.
+      setCallStatus(CallStatus.INACTIVE);
+      toast.error(
+        event?.error?.message ?? "Could not start the call. Please try again.",
+      );
+    };
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
@@ -72,15 +79,29 @@ const Agents = ({ userName, userId, type }: AgentProps) => {
     if(callStatus===CallStatus.FINISHED) router.push('/');
   }, [messages, callStatus, type, userId]);
 
-  const handleCall=async()=>{
-    setCallStatus(CallStatus.CONNECTING)
-    await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,{
-      variableValues:{
-        username:userName,
-        userid:userId
-      }
-    })
-  }
+  const handleCall = async () => {
+    setCallStatus(CallStatus.CONNECTING);
+    try {
+      // start(assistant, assistantOverrides, squad, workflow, workflowOverrides)
+      // A workflow id belongs in the 4th slot; passing it first made Vapi look
+      // it up as an assistant and fail with "Couldn't Get Assistant".
+      await vapi.start(
+        undefined,
+        undefined,
+        undefined,
+        process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+        {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        },
+      );
+    } catch (error) {
+      console.error("Failed to start Vapi call:", error);
+      setCallStatus(CallStatus.INACTIVE);
+    }
+  };
   const handleDissconnect=async()=>{
     setCallStatus(CallStatus.FINISHED)
     vapi.stop();
