@@ -37,7 +37,17 @@ const Agents = ({ userName, userId, type }: AgentProps) => {
     const onSpeachStart = () => setIsSpeaking(true);
     const onSpeachEnd = () => setIsSpeaking(false);
 
-    const onError = (error: Error) => console.log("Error", error);
+    // Vapi hands back plain objects, not Errors, so the console collapses them
+    // to "Object". Spell the payload out instead.
+    const onError = (error: any) =>
+      console.error(
+        "Vapi error:",
+        error?.message ?? error?.errorMsg ?? "(no message)",
+        JSON.stringify(error, Object.getOwnPropertyNames(error ?? {}), 2),
+      );
+
+    const onCallStartFailed = (event: any) =>
+      console.error("Vapi call-start-failed:", JSON.stringify(event, null, 2));
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
@@ -45,6 +55,7 @@ const Agents = ({ userName, userId, type }: AgentProps) => {
     vapi.on("speech-start", onSpeachStart);
     vapi.on("speech-end", onSpeachEnd);
     vapi.on("error", onError);
+    vapi.on("call-start-failed", onCallStartFailed);
 
     return () => {
       vapi.off("call-start", onCallStart);
@@ -53,6 +64,7 @@ const Agents = ({ userName, userId, type }: AgentProps) => {
       vapi.off("speech-start", onSpeachStart);
       vapi.off("speech-end", onSpeachEnd);
       vapi.off("error", onError);
+      vapi.off("call-start-failed", onCallStartFailed);
     };
   }, []);
 
