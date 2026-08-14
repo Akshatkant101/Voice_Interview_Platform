@@ -1,0 +1,66 @@
+// Data lives in Supabase Postgres; auth stays on Firebase.
+// Profile.id is therefore the Firebase uid, not a uuid we generate.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 takes connection URLs from prisma.config.ts, not from here.
+  // CLI/migrations use DIRECT_URL (5432); the runtime client uses the
+  // pooled DATABASE_URL (6543) — see lib/prisma.ts.
+}
+
+model Profile {
+  id        String   @id // Firebase uid
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  interviews Interview[]
+  feedback   Feedback[]
+
+  @@map("profiles")
+}
+
+model Interview {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  role       String
+  level      String
+  type       String
+  techstack  String[]
+  questions  String[]
+  finalized  Boolean  @default(false)
+  coverImage String?  @map("cover_image")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback Feedback[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("interviews")
+}
+
+model Feedback {
+  id                  String   @id @default(uuid())
+  interviewId         String   @map("interview_id")
+  userId              String   @map("user_id")
+  totalScore          Int      @map("total_score")
+  categoryScores      Json     @map("category_scores")
+  strengths           String[]
+  areasForImprovement String[] @map("areas_for_improvement")
+  finalAssessment     String   @map("final_assessment")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  user      Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One feedback row per user per interview.
+  @@unique([interviewId, userId])
+  @@index([userId])
+  @@map("feedback")
+}

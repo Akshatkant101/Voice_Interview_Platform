@@ -1,6 +1,9 @@
 "use server";
 
-import { auth, db } from "@/firebase/admin";
+// Firebase still owns authentication (credentials + session cookies).
+// Profile rows live in Supabase Postgres, keyed by the Firebase uid.
+import { auth } from "@/firebase/admin";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
 const ONE_WEEK = 60 * 60 * 24 * 7;
@@ -9,21 +12,20 @@ export async function signUp(params: SignUpParams) {
   const { uid, name, email } = params;
 
   try {
-    const userRecord = await db.collection("user").doc(uid).get();
+    const existing = await prisma.profile.findUnique({ where: { id: uid } });
 
-    if (userRecord.exists) {
+    if (existing) {
       return {
         success: false,
-        message: "User already exist.Please sign in instead",
+        message: "User already exists. Please sign in instead.",
       };
     }
-    await db.collection("user").doc(uid).set({
-      name,
-      email,
-    });
+
+    await prisma.profile.create({ data: { id: uid, name, email } });
+
     return {
       success: true,
-      message: "Account Created Successfully. Please Sign In",
+      message: "Account created successfully. Please sign in.",
     };
   } catch (err: any) {
     console.log("Error creating user", err);
@@ -31,9 +33,10 @@ export async function signUp(params: SignUpParams) {
     if (err.code === "auth/email-already-exists") {
       return {
         success: false,
-        message: "This email is already in use ",
+        message: "This email is already in use.",
       };
     }
+
     return {
       success: false,
       message: "Failed to create account",
@@ -50,17 +53,33 @@ export async function signIn(params: SignInParams) {
     if (!userRecord) {
       return {
         success: false,
-        message: "User does not exist. Create an account instead",
+        message: "User does not exist. Create an account instead.",
       };
     }
 
+    // A Firebase account can exist without a profile row (e.g. signed up
+    // before the Supabase migration). Backfill instead of dead-ending them.
+    await prisma.profile.upsert({
+      where: { id: userRecord.uid },
+      update: {},
+      create: {
+        id: userRecord.uid,
+        name: userRecord.displayName ?? email.split("@")[0],
+        email,
+      },
+    });
+
     await setSessionCookie(idToken);
+
+    // The caller checks `result?.success`; returning nothing on the happy
+    // path made a successful sign-in indistinguishable from a failure.
+    return { success: true, message: "Signed in successfully." };
   } catch (error) {
     console.log(error);
 
     return {
       success: false,
-      message: "Failed too log into an account",
+      message: "Failed to log into an account",
     };
   }
 }
@@ -79,6 +98,11 @@ export async function setSessionCookie(idtoken: string) {
   });
 }
 
+export async function signOut() {
+  const cookieStore = await cookies();
+  cookieStore.delete("session");
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   const cookieStore = await cookies();
 
@@ -89,13 +113,17 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
 
-    const userRecord = await db.collection("user").doc(decodedClaims.uid).get();
+    const profile = await prisma.profile.findUnique({
+      where: { id: decodedClaims.uid },
+    });
 
-    if (!userRecord.exists) return null;
+    if (!profile) return null;
+
     return {
-      ...userRecord.data(),
-      id: userRecord.id,
-    } as User;
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+    };
   } catch (e) {
     console.log(e);
 
